@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import MapSelector from './MapSelector'
 import { Box, CircularProgress, Alert, Typography, IconButton, Tooltip, Slider } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import WeatherCard from './WeatherCard'
 import HourlyBreakdown from './HourlyBreakdown'
 
@@ -24,6 +25,7 @@ const WeatherDashboard = () => {
         Number(DEFAULT_LATITUDE),
         Number(DEFAULT_LONGITUDE),
     ])
+    const [hourlyExpanded, setHourlyExpanded] = useState(true)
 
     useEffect(() => {
         const fetchWeatherData = async (coords = selectedCoords) => {
@@ -240,54 +242,27 @@ const WeatherDashboard = () => {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* Header */}
-            <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography
-                        variant="h4"
-                        sx={{
-                            fontWeight: 700,
-                            color: '#ffffff',
-                            letterSpacing: '-0.02em',
-                        }}
-                    >
-                        Weather Dashboard
-                    </Typography>
-
-                    {/* Controls */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        {/* Last Updated */}
-                        <Box sx={{ textAlign: 'right' }}>
-                            {lastRefresh && (
-                                <Typography sx={{ color: '#b0bec5', fontSize: '0.75rem', mb: 0.25 }}>
-                                    Updated: {lastRefresh.toLocaleTimeString()}
-                                </Typography>
-                            )}
-                            <Tooltip title="Refresh now (auto-refresh every 30 min)">
-                                <IconButton
-                                    onClick={handleManualRefresh}
-                                    disabled={isRefreshing}
-                                    size="small"
-                                    sx={{
-                                        color: '#00bcd4',
-                                        '&:hover': {
-                                            backgroundColor: 'rgba(0, 188, 212, 0.1)',
-                                        },
-                                        '&.Mui-disabled': {
-                                            color: 'rgba(0, 188, 212, 0.5)',
-                                        },
-                                    }}
-                                >
-                                    <RefreshIcon />
-                                </IconButton>
-                            </Tooltip>
-                        </Box>
+            {/* Header with Threshold and Refresh */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'center', sm: 'center' },
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    width: '100%',
+                }}
+            >
+                {/* Threshold Slider */}
+                <Box sx={{ flex: { xs: 1, sm: 1 }, minWidth: 0, width: { xs: '100%', sm: 'auto' } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' }, gap: 1, mb: 1 }}>
+                        <Typography sx={{ color: '#b0bec5', fontSize: { xs: '0.85rem', sm: '0.9rem' } }}>
+                            Threshold:
+                        </Typography>
+                        <Typography sx={{ color: '#00bcd4', fontWeight: 600, fontSize: { xs: '0.85rem', sm: '0.9rem' } }}>
+                            {precipitationThreshold}%
+                        </Typography>
                     </Box>
-                </Box>
-                <Box sx={{ maxWidth: '350px' }}>
-                    <Typography sx={{ color: '#b0bec5', fontSize: '0.9rem', mb: 1 }}>
-                        Threshold: <span style={{ color: '#00bcd4', fontWeight: 600 }}>{precipitationThreshold}%</span>
-                    </Typography>
                     <Slider
                         value={precipitationThreshold}
                         onChange={(e, newValue) => setPrecipitationThreshold(newValue)}
@@ -314,6 +289,33 @@ const WeatherDashboard = () => {
                         }}
                     />
                 </Box>
+
+                {/* Last Updated and Refresh Button */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'center', sm: 'flex-end' }, gap: 0.5 }}>
+                    {lastRefresh && (
+                        <Typography sx={{ color: '#b0bec5', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                            Updated: {lastRefresh.toLocaleTimeString()}
+                        </Typography>
+                    )}
+                    <Tooltip title="Refresh now (auto-refresh every 30 min)">
+                        <IconButton
+                            onClick={handleManualRefresh}
+                            disabled={isRefreshing}
+                            size="small"
+                            sx={{
+                                color: '#00bcd4',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                                },
+                                '&.Mui-disabled': {
+                                    color: 'rgba(0, 188, 212, 0.5)',
+                                },
+                            }}
+                        >
+                            <RefreshIcon />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
             </Box>
 
             {filteredNextRainyDay && (
@@ -335,88 +337,102 @@ const WeatherDashboard = () => {
 
             {filteredWeatherData && (
                 <Box>
-                    <Typography
-                        variant="h5"
-                        sx={{
-                            mb: 2,
-                            color: '#00bcd4',
-                            fontWeight: 600,
-                            letterSpacing: '0.5px',
-                        }}
-                    >
-                        ⏰ Hourly Breakdown
-                    </Typography>
-                    {filteredHourlyData && <HourlyBreakdown periods={filteredHourlyData} />}
-                    {/* Embedded Map Selector for coordinates */}
-                    <Box sx={{ mt: 4 }}>
-                        <Typography variant="subtitle1" sx={{ color: '#b0bec5', mb: 1 }}>
-                            Search or place a pin to select a new location:
-                        </Typography>
-                        <MapSelector
-                            position={selectedCoords}
-                            setPosition={(coords) => {
-                                setSelectedCoords(coords)
-                                setLoading(true)
-                                setTimeout(() => {
-                                    // fetch new weather for new coords
-                                    const fetchWeatherData = async () => {
-                                        try {
-                                            setError(null)
-                                            // fetch using new coords
-                                            const [latitude, longitude] = coords
-                                            const gridResponse = await fetch(
-                                                `https://api.weather.gov/points/${latitude},${longitude}`
-                                            )
-                                            if (!gridResponse.ok) throw new Error('Failed to fetch grid data')
-                                            const gridData = await gridResponse.json()
-                                            const forecastUrl = gridData.properties.forecast
-                                            const forecastHourlyUrl = gridData.properties.forecastHourly
-                                            const forecastGridDataUrl = gridData.properties.forecastGridData
-                                            const [forecastRes, hourlyRes, gridRes] = await Promise.all([
-                                                fetch(forecastUrl),
-                                                fetch(forecastHourlyUrl),
-                                                fetch(forecastGridDataUrl),
-                                            ])
-                                            if (!forecastRes.ok || !hourlyRes.ok || !gridRes.ok) throw new Error('Failed to fetch weather data')
-                                            const [forecast, forecastHourly, gridForecast] = await Promise.all([
-                                                forecastRes.json(),
-                                                hourlyRes.json(),
-                                                gridRes.json(),
-                                            ])
-                                            const periods = forecast.properties.periods
-                                            const hourlyPeriods = forecastHourly.properties.periods
-                                            const precipitationData = gridForecast.properties.probabilityOfPrecipitation?.values || []
-                                            const rainAccumulationData = gridForecast.properties.quantitativePrecipitation?.values || []
-                                            const enrichedPeriods = periods.map((period, index) => ({
-                                                ...period,
-                                                precipitationChance: extractPrecipitationChance(precipitationData, index),
-                                                rainInches: extractRainInches(rainAccumulationData, index),
-                                            }))
-                                            const enrichedHourlyPeriods = hourlyPeriods.map((period, index) => ({
-                                                ...period,
-                                                precipitationChance: extractPrecipitationChance(precipitationData, index),
-                                                rainInches: extractRainInches(rainAccumulationData, index),
-                                            }))
-                                            setWeatherData(enrichedPeriods)
-                                            setHourlyData(enrichedHourlyPeriods)
-                                            const rainyPeriods = enrichedPeriods.filter((period) => period.precipitationChance > 20)
-                                            if (rainyPeriods.length > 0) setNextRainyDay(rainyPeriods[0])
-                                            setLastRefresh(new Date())
-                                        } catch (err) {
-                                            setError(err.message || 'Failed to fetch weather data')
-                                        } finally {
-                                            setLoading(false)
-                                            setIsRefreshing(false)
-                                        }
-                                    }
-                                    fetchWeatherData()
-                                }, 100)
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Typography
+                            variant="h5"
+                            sx={{
+                                flex: 1,
+                                color: '#00bcd4',
+                                fontWeight: 600,
+                                letterSpacing: '0.5px',
                             }}
-                        />
-                        <Typography sx={{ color: '#b0bec5', fontSize: '0.8rem', mt: 1 }}>
-                            Current: {selectedCoords[0].toFixed(5)}, {selectedCoords[1].toFixed(5)}
+                        >
+                            ⏰ Hourly Breakdown
                         </Typography>
+                        <IconButton
+                            onClick={() => setHourlyExpanded(!hourlyExpanded)}
+                            sx={{
+                                color: '#00bcd4',
+                                transform: hourlyExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                                transition: 'transform 0.3s ease',
+                            }}
+                        >
+                            <ExpandMoreIcon />
+                        </IconButton>
                     </Box>
+                    {hourlyExpanded && filteredHourlyData && <HourlyBreakdown periods={filteredHourlyData} />}
+                </Box>
+            )}
+
+            {filteredWeatherData && (
+                <Box sx={{ mt: 4 }}>
+                    <Typography variant="subtitle1" sx={{ color: '#b0bec5', mb: 1 }}>
+                        Search or place a pin to select a new location:
+                    </Typography>
+                    <MapSelector
+                        position={selectedCoords}
+                        setPosition={(coords) => {
+                            setSelectedCoords(coords)
+                            setLoading(true)
+                            setTimeout(() => {
+                                // fetch new weather for new coords
+                                const fetchWeatherData = async () => {
+                                    try {
+                                        setError(null)
+                                        // fetch using new coords
+                                        const [latitude, longitude] = coords
+                                        const gridResponse = await fetch(
+                                            `https://api.weather.gov/points/${latitude},${longitude}`
+                                        )
+                                        if (!gridResponse.ok) throw new Error('Failed to fetch grid data')
+                                        const gridData = await gridResponse.json()
+                                        const forecastUrl = gridData.properties.forecast
+                                        const forecastHourlyUrl = gridData.properties.forecastHourly
+                                        const forecastGridDataUrl = gridData.properties.forecastGridData
+                                        const [forecastRes, hourlyRes, gridRes] = await Promise.all([
+                                            fetch(forecastUrl),
+                                            fetch(forecastHourlyUrl),
+                                            fetch(forecastGridDataUrl),
+                                        ])
+                                        if (!forecastRes.ok || !hourlyRes.ok || !gridRes.ok) throw new Error('Failed to fetch weather data')
+                                        const [forecast, forecastHourly, gridForecast] = await Promise.all([
+                                            forecastRes.json(),
+                                            hourlyRes.json(),
+                                            gridRes.json(),
+                                        ])
+                                        const periods = forecast.properties.periods
+                                        const hourlyPeriods = forecastHourly.properties.periods
+                                        const precipitationData = gridForecast.properties.probabilityOfPrecipitation?.values || []
+                                        const rainAccumulationData = gridForecast.properties.quantitativePrecipitation?.values || []
+                                        const enrichedPeriods = periods.map((period, index) => ({
+                                            ...period,
+                                            precipitationChance: extractPrecipitationChance(precipitationData, index),
+                                            rainInches: extractRainInches(rainAccumulationData, index),
+                                        }))
+                                        const enrichedHourlyPeriods = hourlyPeriods.map((period, index) => ({
+                                            ...period,
+                                            precipitationChance: extractPrecipitationChance(precipitationData, index),
+                                            rainInches: extractRainInches(rainAccumulationData, index),
+                                        }))
+                                        setWeatherData(enrichedPeriods)
+                                        setHourlyData(enrichedHourlyPeriods)
+                                        const rainyPeriods = enrichedPeriods.filter((period) => period.precipitationChance > 20)
+                                        if (rainyPeriods.length > 0) setNextRainyDay(rainyPeriods[0])
+                                        setLastRefresh(new Date())
+                                    } catch (err) {
+                                        setError(err.message || 'Failed to fetch weather data')
+                                    } finally {
+                                        setLoading(false)
+                                        setIsRefreshing(false)
+                                    }
+                                }
+                                fetchWeatherData()
+                            }, 100)
+                        }}
+                    />
+                    <Typography sx={{ color: '#b0bec5', fontSize: '0.8rem', mt: 1 }}>
+                        Current: {selectedCoords[0].toFixed(5)}, {selectedCoords[1].toFixed(5)}
+                    </Typography>
                 </Box>
             )}
 
