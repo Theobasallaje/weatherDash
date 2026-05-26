@@ -5,6 +5,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import WeatherCard from './WeatherCard'
 import HourlyBreakdown from './HourlyBreakdown'
+import WeekForecast from './WeekForecast'
 
 const ZIP_CODE = 75189
 
@@ -25,121 +26,9 @@ const WeatherDashboard = () => {
         Number(DEFAULT_LATITUDE),
         Number(DEFAULT_LONGITUDE),
     ])
-    const [hourlyExpanded, setHourlyExpanded] = useState(true)
+    const [hourlyExpanded, setHourlyExpanded] = useState(false)
 
     useEffect(() => {
-        const fetchWeatherData = async (coords = selectedCoords) => {
-            try {
-                setError(null)
-
-                // Default to Dallas, TX if coords are missing/invalid
-                const defaultCoords = [32.7767, -96.7970]
-
-                const validCoords =
-                    Array.isArray(coords) &&
-                        coords.length === 2 &&
-                        coords[0] != null &&
-                        coords[1] != null &&
-                        !isNaN(coords[0]) &&
-                        !isNaN(coords[1])
-                        ? coords
-                        : defaultCoords
-
-                // Get the grid data using coordinates
-                const [latitude, longitude] = validCoords
-
-                const gridResponse = await fetch(
-                    `https://api.weather.gov/points/${latitude},${longitude}`
-                )
-
-                if (!gridResponse.ok) {
-                    throw new Error('Failed to fetch grid data')
-                }
-
-                const gridData = await gridResponse.json()
-                const forecastUrl = gridData.properties.forecast
-                const forecastHourlyUrl = gridData.properties.forecastHourly
-                const forecastGridDataUrl = gridData.properties.forecastGridData
-
-                // Fetch forecast data
-                const forecastResponse = await fetch(forecastUrl)
-
-                if (!forecastResponse.ok) {
-                    throw new Error('Failed to fetch forecast')
-                }
-
-                const forecast = await forecastResponse.json()
-
-                // Fetch hourly forecast data
-                const forecastHourlyResponse = await fetch(forecastHourlyUrl)
-
-                if (!forecastHourlyResponse.ok) {
-                    throw new Error('Failed to fetch hourly forecast')
-                }
-
-                const forecastHourly = await forecastHourlyResponse.json()
-
-                // Fetch grid data for precipitation probability
-                const gridDataResponse = await fetch(forecastGridDataUrl)
-
-                if (!gridDataResponse.ok) {
-                    throw new Error('Failed to fetch grid data')
-                }
-
-                const gridForecast = await gridDataResponse.json()
-
-                // Parse the forecast periods
-                const periods = forecast.properties.periods
-                const hourlyPeriods = forecastHourly.properties.periods
-
-                const precipitationData =
-                    gridForecast.properties.probabilityOfPrecipitation?.values || []
-
-                const rainAccumulationData =
-                    gridForecast.properties.quantitativePrecipitation?.values || []
-
-                // Combine data for daily view
-                const enrichedPeriods = periods.map((period, index) => ({
-                    ...period,
-                    precipitationChance: extractPrecipitationChance(
-                        precipitationData,
-                        index
-                    ),
-                    rainInches: extractRainInches(rainAccumulationData, index),
-                }))
-
-                // Combine data for hourly view
-                const enrichedHourlyPeriods = hourlyPeriods.map((period, index) => ({
-                    ...period,
-                    precipitationChance: extractPrecipitationChance(
-                        precipitationData,
-                        index
-                    ),
-                    rainInches: extractRainInches(rainAccumulationData, index),
-                }))
-
-                setWeatherData(enrichedPeriods)
-                setHourlyData(enrichedHourlyPeriods)
-
-                // Find the next rainy day
-                const rainyPeriods = enrichedPeriods.filter(
-                    (period) => period.precipitationChance > 20
-                )
-
-                if (rainyPeriods.length > 0) {
-                    setNextRainyDay(rainyPeriods[0])
-                }
-
-                setLastRefresh(new Date())
-            } catch (err) {
-                console.error('Weather fetch error:', err)
-                setError(err.message || 'Failed to fetch weather data')
-            } finally {
-                setLoading(false)
-                setIsRefreshing(false)
-            }
-        }
-
         fetchWeatherData(selectedCoords)
 
         // Set up automatic refresh every 30 minutes
@@ -150,7 +39,7 @@ const WeatherDashboard = () => {
 
         // Cleanup interval on unmount
         return () => clearInterval(interval)
-    }, [])
+    }, [selectedCoords])
 
     const extractPrecipitationChance = (precipitationData, periodIndex) => {
         if (!Array.isArray(precipitationData) || precipitationData.length === 0) {
@@ -181,11 +70,121 @@ const WeatherDashboard = () => {
         return 0
     }
 
+    const fetchWeatherData = async (coords) => {
+        try {
+            setError(null)
+
+            // Default to Dallas, TX if coords are missing/invalid
+            const defaultCoords = [32.7767, -96.7970]
+
+            const validCoords =
+                Array.isArray(coords) &&
+                    coords.length === 2 &&
+                    coords[0] != null &&
+                    coords[1] != null &&
+                    !isNaN(coords[0]) &&
+                    !isNaN(coords[1])
+                    ? coords
+                    : defaultCoords
+
+            // Get the grid data using coordinates
+            const [latitude, longitude] = validCoords
+
+            const gridResponse = await fetch(
+                `https://api.weather.gov/points/${latitude},${longitude}`
+            )
+
+            if (!gridResponse.ok) {
+                throw new Error('Failed to fetch grid data')
+            }
+
+            const gridData = await gridResponse.json()
+            const forecastUrl = gridData.properties.forecast
+            const forecastHourlyUrl = gridData.properties.forecastHourly
+            const forecastGridDataUrl = gridData.properties.forecastGridData
+
+            // Fetch forecast data
+            const forecastResponse = await fetch(forecastUrl)
+
+            if (!forecastResponse.ok) {
+                throw new Error('Failed to fetch forecast')
+            }
+
+            const forecast = await forecastResponse.json()
+
+            // Fetch hourly forecast data
+            const forecastHourlyResponse = await fetch(forecastHourlyUrl)
+
+            if (!forecastHourlyResponse.ok) {
+                throw new Error('Failed to fetch hourly forecast')
+            }
+
+            const forecastHourly = await forecastHourlyResponse.json()
+
+            // Fetch grid data for precipitation probability
+            const gridDataResponse = await fetch(forecastGridDataUrl)
+
+            if (!gridDataResponse.ok) {
+                throw new Error('Failed to fetch grid data')
+            }
+
+            const gridForecast = await gridDataResponse.json()
+
+            // Parse the forecast periods
+            const periods = forecast.properties.periods
+            const hourlyPeriods = forecastHourly.properties.periods
+
+            const precipitationData =
+                gridForecast.properties.probabilityOfPrecipitation?.values || []
+
+            const rainAccumulationData =
+                gridForecast.properties.quantitativePrecipitation?.values || []
+
+            // Combine data for daily view
+            const enrichedPeriods = periods.map((period, index) => ({
+                ...period,
+                precipitationChance: extractPrecipitationChance(
+                    precipitationData,
+                    index
+                ),
+                rainInches: extractRainInches(rainAccumulationData, index),
+            }))
+
+            // Combine data for hourly view
+            const enrichedHourlyPeriods = hourlyPeriods.map((period, index) => ({
+                ...period,
+                precipitationChance: extractPrecipitationChance(
+                    precipitationData,
+                    index
+                ),
+                rainInches: extractRainInches(rainAccumulationData, index),
+            }))
+
+            setWeatherData(enrichedPeriods)
+            setHourlyData(enrichedHourlyPeriods)
+
+            // Find the next rainy day
+            const rainyPeriods = enrichedPeriods.filter(
+                (period) => period.precipitationChance > 20
+            )
+
+            if (rainyPeriods.length > 0) {
+                setNextRainyDay(rainyPeriods[0])
+            }
+
+            setLastRefresh(new Date())
+        } catch (err) {
+            console.error('Weather fetch error:', err)
+            setError(err.message || 'Failed to fetch weather data')
+        } finally {
+            setLoading(false)
+            setIsRefreshing(false)
+        }
+    }
+
     const handleManualRefresh = async () => {
         setIsRefreshing(true)
-        setError(null)
         await fetchWeatherData(selectedCoords)
-        setIsRefreshing(false)
     }
 
     // Filter data based on precipitation threshold
@@ -332,6 +331,23 @@ const WeatherDashboard = () => {
                         📍 Next Rainy Day
                     </Typography>
                     <WeatherCard period={filteredNextRainyDay} />
+                </Box>
+            )}
+
+            {filteredWeatherData && (
+                <Box>
+                    <Typography
+                        variant="h5"
+                        sx={{
+                            mb: 2,
+                            color: '#00bcd4',
+                            fontWeight: 600,
+                            letterSpacing: '0.5px',
+                        }}
+                    >
+                        📅 Week Forecast
+                    </Typography>
+                    <WeekForecast periods={filteredWeatherData} />
                 </Box>
             )}
 
