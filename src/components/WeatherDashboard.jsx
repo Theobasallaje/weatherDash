@@ -20,7 +20,7 @@ const WeatherDashboard = () => {
     const [error, setError] = useState(null)
     const [lastRefresh, setLastRefresh] = useState(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
-    const [precipitationThreshold, setPrecipitationThreshold] = useState(0)
+    const [precipitationThreshold, setPrecipitationThreshold] = useState(10)
     const [selectedCoords, setSelectedCoords] = useState([
         Number(DEFAULT_LATITUDE),
         Number(DEFAULT_LONGITUDE),
