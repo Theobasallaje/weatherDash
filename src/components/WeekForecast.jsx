@@ -1,8 +1,6 @@
 import { Box } from '@mui/material'
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
+import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend)
 
 // periods: array of forecast periods (daily + hourly). We'll aggregate by date.
 const WeekForecast = ({ periods }) => {
