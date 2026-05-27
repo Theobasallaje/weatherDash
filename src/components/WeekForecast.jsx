@@ -24,10 +24,10 @@ const WeekForecast = ({ periods }) => {
           inches,
         }
       } else {
-        // max precip chance for day
+        // keep max chance only for coloring
         byDate[key].chance = Math.max(byDate[key].chance, chance)
 
-        // sum rainfall totals
+        // rainfall accumulates
         byDate[key].inches = Number(
           (Number(byDate[key].inches) + inches).toFixed(2)
         )
@@ -82,51 +82,24 @@ const WeekForecast = ({ periods }) => {
     return '#0b1e3a'
   }
 
+  const maxRain = Math.max(...inchesData, 1)
+
   const data = {
     labels,
 
     datasets: [
       {
-        label: 'Rain Chance',
+        label: 'Rainfall',
 
-        data: chanceData,
+        data: inchesData,
 
+        // color reflects rain likelihood
         backgroundColor: chanceData.map(getChanceColor),
 
         borderColor: 'rgba(255,255,255,0.12)',
         borderWidth: 1.5,
 
         borderRadius: 12,
-        borderSkipped: false,
-
-        categoryPercentage: 0.72,
-        barPercentage: 0.9,
-      },
-
-      // subtle rainfall overlay
-      {
-        label: 'Rainfall',
-
-        data: chanceData.map((v, i) => {
-          const rain = inchesData[i]
-
-          if (rain >= 2) return 18
-          if (rain >= 1) return 14
-          if (rain >= 0.5) return 10
-          if (rain >= 0.1) return 6
-
-          return 0
-        }),
-
-        backgroundColor: 'rgba(255,255,255,0.18)',
-
-        borderRadius: {
-          topLeft: 12,
-          topRight: 12,
-          bottomLeft: 0,
-          bottomRight: 0,
-        },
-
         borderSkipped: false,
 
         categoryPercentage: 0.72,
@@ -139,10 +112,8 @@ const WeekForecast = ({ periods }) => {
     responsive: true,
     maintainAspectRatio: false,
 
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
+    // disables hover interactions
+    events: [],
 
     plugins: {
       legend: {
@@ -150,23 +121,7 @@ const WeekForecast = ({ periods }) => {
       },
 
       tooltip: {
-        backgroundColor: '#111827',
-        borderColor: 'rgba(255,255,255,0.15)',
-        borderWidth: 1,
-
-        titleColor: '#fff',
-        bodyColor: '#e5e7eb',
-
-        callbacks: {
-          label: (ctx) => {
-            const idx = ctx.dataIndex
-
-            return [
-              `Chance: ${chanceData[idx]}%`,
-              `Rainfall: ${inchesData[idx].toFixed(2)}"`,
-            ]
-          },
-        },
+        enabled: false,
       },
 
       datalabels: {
@@ -182,25 +137,19 @@ const WeekForecast = ({ periods }) => {
           size: 13,
         },
 
-        formatter: (value, ctx) => {
-          // only label the primary bars
-          if (ctx.datasetIndex !== 0) return null
+        // rainfall label only
+        formatter: (value) => `${value.toFixed(2)}"`,
 
-          const rain = inchesData[ctx.dataIndex]
-
-          return [`${value}%`, `${rain.toFixed(2)}"`]
-        },
-
+        // centered inside bar
         anchor: 'center',
         align: 'center',
+
         textAlign: 'center',
       },
     },
 
     scales: {
       x: {
-        stacked: true,
-
         ticks: {
           color: '#f3f4f6',
           padding: 10,
@@ -214,40 +163,25 @@ const WeekForecast = ({ periods }) => {
         grid: {
           display: false,
         },
+
+        border: {
+          display: false,
+        },
       },
 
       y: {
-        stacked: true,
+        display: false,
 
-        min: 0,
-        max: 100,
+        beginAtZero: true,
 
-        ticks: {
-          color: '#9ca3af',
-
-          stepSize: 20,
-
-          callback: (v) => `${v}%`,
-
-          font: {
-            weight: '600',
-          },
-        },
-
-        title: {
-          display: true,
-          text: 'Chance of Rain',
-
-          color: '#cbd5e1',
-
-          font: {
-            size: 14,
-            weight: '700',
-          },
-        },
+        suggestedMax: Math.max(maxRain * 1.25, 1),
 
         grid: {
-          color: 'rgba(255,255,255,0.08)',
+          display: false,
+        },
+
+        border: {
+          display: false,
         },
       },
     },

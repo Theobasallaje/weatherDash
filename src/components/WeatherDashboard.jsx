@@ -336,7 +336,7 @@ const WeatherDashboard = () => {
 
             {filteredWeatherData && (
                 <Box>
-                    <Typography
+                    {/* <Typography
                         variant="h5"
                         sx={{
                             mb: 2,
@@ -346,7 +346,7 @@ const WeatherDashboard = () => {
                         }}
                     >
                         📅 Week Forecast
-                    </Typography>
+                    </Typography> */}
                     <WeekForecast periods={filteredWeatherData} />
                 </Box>
             )}
