@@ -21,7 +21,7 @@ const WeatherDashboard = () => {
     const [error, setError] = useState(null)
     const [lastRefresh, setLastRefresh] = useState(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
-    const [precipitationThreshold, setPrecipitationThreshold] = useState(10)
+    const [precipitationThreshold, setPrecipitationThreshold] = useState(50)
     const [selectedCoords, setSelectedCoords] = useState([
         Number(DEFAULT_LATITUDE),
         Number(DEFAULT_LONGITUDE),
@@ -317,7 +317,7 @@ const WeatherDashboard = () => {
                 </Box>
             </Box>
 
-            {filteredNextRainyDay && (
+            {/* {filteredNextRainyDay && (
                 <Box>
                     <Typography
                         variant="h5"
@@ -332,7 +332,7 @@ const WeatherDashboard = () => {
                     </Typography>
                     <WeatherCard period={filteredNextRainyDay} />
                 </Box>
-            )}
+            )} */}
 
             {filteredWeatherData && (
                 <Box>
@@ -351,7 +351,7 @@ const WeatherDashboard = () => {
                 </Box>
             )}
 
-            {filteredWeatherData && (
+            {/* {filteredWeatherData && (
                 <Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         <Typography
@@ -458,7 +458,7 @@ const WeatherDashboard = () => {
                         ? `No periods with ${precipitationThreshold}%+ precipitation. Try lowering the threshold.`
                         : `No rain expected in the forecast for zip code ${ZIP_CODE}`}
                 </Alert>
-            )}
+            )} */}
         </Box>
     )
 }

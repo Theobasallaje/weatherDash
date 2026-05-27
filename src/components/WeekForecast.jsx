@@ -3,11 +3,10 @@ import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 
-// periods: array of forecast periods (daily + hourly). We'll aggregate by date.
 const WeekForecast = ({ periods }) => {
   if (!periods || periods.length === 0) return null
 
-  // Aggregate by date (YYYY-MM-DD)
+  // Aggregate forecast by date
   const byDate = {}
 
   periods.forEach((p) => {
@@ -25,14 +24,16 @@ const WeekForecast = ({ periods }) => {
           inches,
         }
       } else {
-        // take max chance, sum inches
+        // max precip chance for day
         byDate[key].chance = Math.max(byDate[key].chance, chance)
+
+        // sum rainfall totals
         byDate[key].inches = Number(
           (Number(byDate[key].inches) + inches).toFixed(2)
         )
       }
     } catch (e) {
-      // ignore bad dates
+      // ignore invalid dates
     }
   })
 
@@ -44,12 +45,17 @@ const WeekForecast = ({ periods }) => {
     const d = new Date(e.label)
 
     const today = new Date()
-    if (d.toDateString() === today.toDateString()) return 'Today'
+
+    if (d.toDateString() === today.toDateString()) {
+      return 'Today'
+    }
 
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
+    if (d.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow'
+    }
 
     return d.toLocaleDateString('en-US', {
       weekday: 'short',
@@ -61,44 +67,69 @@ const WeekForecast = ({ periods }) => {
   const chanceData = entries.map((e) => Number(e.chance))
   const inchesData = entries.map((e) => Number(e.inches))
 
-  // Color scales
+  // Dark blue -> purple -> red scale
   const getChanceColor = (value) => {
-    if (value >= 80) return '#0d47a1'
-    if (value >= 60) return '#1976d2'
-    if (value >= 40) return '#42a5f5'
-    if (value >= 20) return '#81d4fa'
-    return '#d0f0ff'
-  }
+    if (value >= 90) return '#7f0000'
+    if (value >= 80) return '#b71c1c'
+    if (value >= 70) return '#c62828'
+    if (value >= 60) return '#d84315'
+    if (value >= 50) return '#6a1b9a'
+    if (value >= 40) return '#4527a0'
+    if (value >= 30) return '#283593'
+    if (value >= 20) return '#1e3a8a'
+    if (value >= 10) return '#162d5c'
 
-  const getRainColor = (value) => {
-    if (value >= 2) return '#1b5e20'
-    if (value >= 1) return '#2e7d32'
-    if (value >= 0.5) return '#43a047'
-    if (value >= 0.1) return '#81c784'
-    return '#dcedc8'
+    return '#0b1e3a'
   }
 
   const data = {
     labels,
+
     datasets: [
       {
-        label: 'Precipitation Chance',
+        label: 'Rain Chance',
+
         data: chanceData,
+
         backgroundColor: chanceData.map(getChanceColor),
-        borderRadius: 8,
+
+        borderColor: 'rgba(255,255,255,0.12)',
+        borderWidth: 1.5,
+
+        borderRadius: 12,
         borderSkipped: false,
-        yAxisID: 'y',
-        categoryPercentage: 0.7,
+
+        categoryPercentage: 0.72,
         barPercentage: 0.9,
       },
+
+      // subtle rainfall overlay
       {
-        label: 'Rainfall (in)',
-        data: inchesData,
-        backgroundColor: inchesData.map(getRainColor),
-        borderRadius: 8,
+        label: 'Rainfall',
+
+        data: chanceData.map((v, i) => {
+          const rain = inchesData[i]
+
+          if (rain >= 2) return 18
+          if (rain >= 1) return 14
+          if (rain >= 0.5) return 10
+          if (rain >= 0.1) return 6
+
+          return 0
+        }),
+
+        backgroundColor: 'rgba(255,255,255,0.18)',
+
+        borderRadius: {
+          topLeft: 12,
+          topRight: 12,
+          bottomLeft: 0,
+          bottomRight: 0,
+        },
+
         borderSkipped: false,
-        yAxisID: 'y1',
-        categoryPercentage: 0.7,
+
+        categoryPercentage: 0.72,
         barPercentage: 0.9,
       },
     ],
@@ -115,56 +146,68 @@ const WeekForecast = ({ periods }) => {
 
     plugins: {
       legend: {
-        position: 'top',
-        labels: {
-          color: '#fff',
-          font: {
-            weight: 'bold',
-          },
-        },
+        display: false,
       },
 
       tooltip: {
-        mode: 'index',
-        intersect: false,
+        backgroundColor: '#111827',
+        borderColor: 'rgba(255,255,255,0.15)',
+        borderWidth: 1,
+
+        titleColor: '#fff',
+        bodyColor: '#e5e7eb',
+
         callbacks: {
           label: (ctx) => {
-            if (ctx.dataset.yAxisID === 'y') {
-              return ` ${ctx.raw}% chance`
-            }
-            return ` ${ctx.raw}" rainfall`
+            const idx = ctx.dataIndex
+
+            return [
+              `Chance: ${chanceData[idx]}%`,
+              `Rainfall: ${inchesData[idx].toFixed(2)}"`,
+            ]
           },
         },
       },
 
       datalabels: {
-        color: '#fff',
-        anchor: 'end',
-        align: 'start',
-        offset: -2,
+        color: '#f8fafc',
+
+        textStrokeColor: 'rgba(0,0,0,0.45)',
+        textStrokeWidth: 3,
+
         clamp: true,
 
         font: {
-          weight: 'bold',
-          size: 12,
+          weight: '800',
+          size: 13,
         },
 
         formatter: (value, ctx) => {
-          if (ctx.dataset.yAxisID === 'y') {
-            return `${value}%`
-          }
+          // only label the primary bars
+          if (ctx.datasetIndex !== 0) return null
 
-          return `${value.toFixed(2)}"`
+          const rain = inchesData[ctx.dataIndex]
+
+          return [`${value}%`, `${rain.toFixed(2)}"`]
         },
+
+        anchor: 'center',
+        align: 'center',
+        textAlign: 'center',
       },
     },
 
     scales: {
       x: {
+        stacked: true,
+
         ticks: {
-          color: '#ddd',
+          color: '#f3f4f6',
+          padding: 10,
+
           font: {
-            weight: '600',
+            size: 13,
+            weight: '700',
           },
         },
 
@@ -174,24 +217,32 @@ const WeekForecast = ({ periods }) => {
       },
 
       y: {
-        type: 'linear',
-        display: true,
-        position: 'left',
+        stacked: true,
 
         min: 0,
         max: 100,
 
         ticks: {
-          color: '#90caf9',
+          color: '#9ca3af',
+
+          stepSize: 20,
+
           callback: (v) => `${v}%`,
+
+          font: {
+            weight: '600',
+          },
         },
 
         title: {
           display: true,
           text: 'Chance of Rain',
-          color: '#90caf9',
+
+          color: '#cbd5e1',
+
           font: {
-            weight: 'bold',
+            size: 14,
+            weight: '700',
           },
         },
 
@@ -199,37 +250,16 @@ const WeekForecast = ({ periods }) => {
           color: 'rgba(255,255,255,0.08)',
         },
       },
-
-      y1: {
-        type: 'linear',
-        display: true,
-        position: 'right',
-
-        beginAtZero: true,
-
-        ticks: {
-          color: '#a5d6a7',
-          callback: (v) => `${v}"`,
-        },
-
-        title: {
-          display: true,
-          text: 'Rainfall Amount',
-          color: '#a5d6a7',
-          font: {
-            weight: 'bold',
-          },
-        },
-
-        grid: {
-          drawOnChartArea: false,
-        },
-      },
     },
   }
 
   return (
-    <Box sx={{ height: 340 }}>
+    <Box
+      sx={{
+        height: 320,
+        width: '100%',
+      }}
+    >
       <Chart
         type="bar"
         data={data}
