@@ -66,15 +66,15 @@ const WeekForecast = ({ periods }) => {
   const chanceData = entries.map((e) => Number(e.chance))
 
   const getChanceColor = (value) => {
-    if (value >= 90) return '#ef4444'
-    if (value >= 80) return '#ff6794'
-    if (value >= 70) return '#fc7691'
-    if (value >= 60) return '#ff92c7'
-    if (value >= 50) return '#ff94e1'
-    if (value >= 40) return '#f0a3ff'
-    if (value >= 30) return '#bd94ff'
-    if (value >= 20) return '#8aa2ff'
-    if (value >= 0) return '#80befd'
+    if (value >= 90) return '#3f2fd0'
+    if (value >= 80) return '#6e53e3'
+    if (value >= 70) return '#8376fc'
+    if (value >= 60) return '#9692ff'
+    if (value >= 50) return '#94c6ff'
+    if (value >= 40) return '#96e6cd'
+    if (value >= 30) return '#a5e491'
+    if (value >= 20) return '#b4d282'
+    if (value >= 0) return '#fde680'
     return '#f8fafc'
   }
 
