@@ -304,7 +304,7 @@ const WeatherDashboard = () => {
             <Typography
               sx={{
                 color: '#6b7280',
-                fontSize: '0.75rem',
+                fontSize: '0.9rem',
               }}
             >
               Updated:{' '}
@@ -331,7 +331,7 @@ const WeatherDashboard = () => {
                 },
               }}
             >
-              <RefreshIcon />
+              <RefreshIcon sx={{height: 32, width: 32}}/>
             </IconButton>
           </Tooltip>
         </Box>
