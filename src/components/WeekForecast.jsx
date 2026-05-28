@@ -37,31 +37,34 @@ const WeekForecast = ({ periods }) => {
     .sort((a, b) => (a.label > b.label ? 1 : -1))
     .slice(0, 5)
 
-  const labels = entries.map((e) => {
-    const d = new Date(e.label)
-    const today = new Date()
+  // Helper for labels
+  const getRelativeLabel = (dateStr) => {
+    const d = new Date(dateStr)
 
-    if (d.toDateString() === today.toDateString()) return 'Today'
+    const today = new Date()
+    const yesterday = new Date()
+    yesterday.setDate(today.getDate() - 1)
 
     const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setDate(today.getDate() + 1)
 
+    if (d.toDateString() === today.toDateString()) return 'Today'
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
     if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
 
+    // fallback: weekday only
     return d.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
+      weekday: 'long',
     })
-  })
+  }
 
-  // REAL values (for labels)
+  const labels = entries.map((e) => getRelativeLabel(e.label))
+
+  // REAL values (display text)
   const realInches = entries.map((e) => Number(e.inches))
 
-  // DISPLAY values (for bar height)
-  const inchesData = realInches.map((v) =>
-    Math.sqrt(v) // 🔥 key change
-  )
+  // DISPLAY values (bar height)
+  const inchesData = realInches.map((v) => Math.sqrt(v))
 
   const chanceData = entries.map((e) => Number(e.chance))
 
@@ -113,9 +116,8 @@ const WeekForecast = ({ periods }) => {
         textStrokeColor: 'rgba(255,255,255,0.7)',
         textStrokeWidth: 3,
         clamp: true,
-        font: { weight: '800', size: 13 },
+        font: { weight: '800', size: 18 },
 
-        // 🔥 show REAL rainfall, not scaled value
         formatter: (_, context) =>
           `${realInches[context.dataIndex].toFixed(2)}"`,
 
@@ -130,7 +132,7 @@ const WeekForecast = ({ periods }) => {
         ticks: {
           color: '#374151',
           padding: 10,
-          font: { size: 13, weight: '700' },
+          font: { size: 16, weight: '500' },
         },
         grid: { display: false },
         border: { display: false },
