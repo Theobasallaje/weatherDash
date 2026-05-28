@@ -1,20 +1,24 @@
 import { Box } from '@mui/material'
 import 'chart.js/auto'
+
 import { Chart } from 'react-chartjs-2'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 const WeekForecast = ({ periods }) => {
   if (!periods || periods.length === 0) return null
 
-  // Aggregate forecast by date
   const byDate = {}
 
   periods.forEach((p) => {
     try {
       const d = new Date(p.startTime)
+
       const key = d.toISOString().slice(0, 10)
 
-      const chance = Number(p.precipitationChance || 0)
+      const chance = Number(
+        p.precipitationChance || 0
+      )
+
       const inches = Number(p.rainInches || 0)
 
       if (!byDate[key]) {
@@ -24,17 +28,18 @@ const WeekForecast = ({ periods }) => {
           inches,
         }
       } else {
-        // keep max chance only for coloring
-        byDate[key].chance = Math.max(byDate[key].chance, chance)
+        byDate[key].chance = Math.max(
+          byDate[key].chance,
+          chance
+        )
 
-        // rainfall accumulates
         byDate[key].inches = Number(
-          (Number(byDate[key].inches) + inches).toFixed(2)
+          (
+            Number(byDate[key].inches) + inches
+          ).toFixed(2)
         )
       }
-    } catch (e) {
-      // ignore invalid dates
-    }
+    } catch (e) {}
   })
 
   const entries = Object.values(byDate).sort((a, b) =>
@@ -51,9 +56,12 @@ const WeekForecast = ({ periods }) => {
     }
 
     const tomorrow = new Date(today)
+
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    if (d.toDateString() === tomorrow.toDateString()) {
+    if (
+      d.toDateString() === tomorrow.toDateString()
+    ) {
       return 'Tomorrow'
     }
 
@@ -64,22 +72,26 @@ const WeekForecast = ({ periods }) => {
     })
   })
 
-  const chanceData = entries.map((e) => Number(e.chance))
-  const inchesData = entries.map((e) => Number(e.inches))
+  const chanceData = entries.map((e) =>
+    Number(e.chance)
+  )
 
-  // Dark blue -> purple -> red scale
+  const inchesData = entries.map((e) =>
+    Number(e.inches)
+  )
+
   const getChanceColor = (value) => {
-    if (value >= 90) return '#7f0000'
-    if (value >= 80) return '#b71c1c'
-    if (value >= 70) return '#c62828'
-    if (value >= 60) return '#d84315'
-    if (value >= 50) return '#6a1b9a'
-    if (value >= 40) return '#4527a0'
-    if (value >= 30) return '#283593'
-    if (value >= 20) return '#1e3a8a'
-    if (value >= 10) return '#162d5c'
+    if (value >= 90) return '#ef4444'
+    if (value >= 80) return '#f87171'
+    if (value >= 70) return '#fb923c'
+    if (value >= 60) return '#fbbf24'
+    if (value >= 50) return '#fde68a'
+    if (value >= 40) return '#cbd5e1'
+    if (value >= 30) return '#dbeafe'
+    if (value >= 20) return '#e0f2fe'
+    if (value >= 10) return '#f1f5f9'
 
-    return '#0b1e3a'
+    return '#f8fafc'
   }
 
   const maxRain = Math.max(...inchesData, 1)
@@ -93,16 +105,20 @@ const WeekForecast = ({ periods }) => {
 
         data: inchesData,
 
-        // color reflects rain likelihood
-        backgroundColor: chanceData.map(getChanceColor),
+        backgroundColor:
+          chanceData.map(getChanceColor),
 
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor:
+          'rgba(255,255,255,0.5)',
+
         borderWidth: 1.5,
 
-        borderRadius: 12,
+        borderRadius: 14,
+
         borderSkipped: false,
 
         categoryPercentage: 0.72,
+
         barPercentage: 0.9,
       },
     ],
@@ -110,9 +126,9 @@ const WeekForecast = ({ periods }) => {
 
   const options = {
     responsive: true,
+
     maintainAspectRatio: false,
 
-    // disables hover interactions
     events: [],
 
     plugins: {
@@ -125,9 +141,11 @@ const WeekForecast = ({ periods }) => {
       },
 
       datalabels: {
-        color: '#f8fafc',
+        color: '#111827',
 
-        textStrokeColor: 'rgba(0,0,0,0.45)',
+        textStrokeColor:
+          'rgba(255,255,255,0.7)',
+
         textStrokeWidth: 3,
 
         clamp: true,
@@ -137,11 +155,11 @@ const WeekForecast = ({ periods }) => {
           size: 13,
         },
 
-        // rainfall label only
-        formatter: (value) => `${value.toFixed(2)}"`,
+        formatter: (value) =>
+          `${value.toFixed(2)}"`,
 
-        // centered inside bar
         anchor: 'center',
+
         align: 'center',
 
         textAlign: 'center',
@@ -151,7 +169,8 @@ const WeekForecast = ({ periods }) => {
     scales: {
       x: {
         ticks: {
-          color: '#f3f4f6',
+          color: '#374151',
+
           padding: 10,
 
           font: {
@@ -174,7 +193,10 @@ const WeekForecast = ({ periods }) => {
 
         beginAtZero: true,
 
-        suggestedMax: Math.max(maxRain * 1.25, 1),
+        suggestedMax: Math.max(
+          maxRain * 1.25,
+          1
+        ),
 
         grid: {
           display: false,
