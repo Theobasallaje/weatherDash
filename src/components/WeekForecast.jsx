@@ -42,9 +42,10 @@ const WeekForecast = ({ periods }) => {
     } catch (e) {}
   })
 
-  const entries = Object.values(byDate).sort((a, b) =>
-    a.label > b.label ? 1 : -1
-  )
+  // SORT + LIMIT TO 5 DAYS
+  const entries = Object.values(byDate)
+    .sort((a, b) => (a.label > b.label ? 1 : -1))
+    .slice(0, 5)
 
   const labels = entries.map((e) => {
     const d = new Date(e.label)
