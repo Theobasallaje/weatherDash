@@ -3,6 +3,7 @@ import 'chart.js/auto'
 
 import { Chart } from 'react-chartjs-2'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
+import { useMemo } from 'react'
 
 const WeekForecast = ({ periods }) => {
   if (!periods || periods.length === 0) return null
@@ -18,14 +19,9 @@ const WeekForecast = ({ periods }) => {
       const inches = Number(p.rainInches || 0)
 
       if (!byDate[key]) {
-        byDate[key] = {
-          label: key,
-          chance,
-          inches,
-        }
+        byDate[key] = { label: key, chance, inches }
       } else {
         byDate[key].chance = Math.max(byDate[key].chance, chance)
-
         byDate[key].inches = Number(
           (Number(byDate[key].inches) + inches).toFixed(2)
         )
@@ -37,7 +33,6 @@ const WeekForecast = ({ periods }) => {
     .sort((a, b) => (a.label > b.label ? 1 : -1))
     .slice(0, 5)
 
-  // Helper for labels
   const getRelativeLabel = (dateStr) => {
     const d = new Date(dateStr)
 
@@ -52,20 +47,14 @@ const WeekForecast = ({ periods }) => {
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
     if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
 
-    // fallback: weekday only
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-    })
+    return d.toLocaleDateString('en-US', { weekday: 'long' })
   }
 
   const labels = entries.map((e) => getRelativeLabel(e.label))
+  const todayIndex = labels.findIndex((l) => l === 'Today')
 
-  // REAL values (display text)
   const realInches = entries.map((e) => Number(e.inches))
-
-  // DISPLAY values (bar height)
   const inchesData = realInches.map((v) => Math.sqrt(v))
-
   const chanceData = entries.map((e) => Number(e.chance))
 
   const getChanceColor = (value) => {
@@ -82,6 +71,56 @@ const WeekForecast = ({ periods }) => {
   }
 
   const maxRain = Math.max(...inchesData, 1)
+
+  // -------- ANIMATED UNDERLINE STATE --------
+  const underlineState = useMemo(() => {
+    return { progress: 0 }
+  }, [])
+
+  const todayUnderlinePlugin = {
+    id: 'todayUnderline',
+
+    afterDraw(chart) {
+      if (todayIndex < 0) return
+
+      const {
+        ctx,
+        scales: { x },
+        chartArea,
+      } = chart
+
+      const xPos = x.getPixelForTick(todayIndex)
+      const yPos = chartArea.bottom + 48
+
+      const todayColor = getChanceColor(chanceData[todayIndex])
+
+      const start = xPos - 55
+      const end = xPos + 55
+
+      // animate progress once
+      if (underlineState.progress < 1) {
+        underlineState.progress += 0.06
+        underlineState.progress = Math.min(underlineState.progress, 1)
+
+        requestAnimationFrame(() => chart.draw())
+      }
+
+      const currentEnd = start + (end - start) * underlineState.progress
+
+      ctx.save()
+
+      ctx.strokeStyle = `${todayColor}cc`
+      ctx.lineWidth = 6
+      ctx.lineCap = 'round'
+
+      ctx.beginPath()
+      ctx.moveTo(start, yPos)
+      ctx.lineTo(currentEnd, yPos)
+      ctx.stroke()
+
+      ctx.restore()
+    },
+  }
 
   const data = {
     labels,
@@ -107,6 +146,12 @@ const WeekForecast = ({ periods }) => {
     maintainAspectRatio: false,
     events: [],
 
+    layout: {
+      padding: {
+        bottom: 20,
+      },
+    },
+
     plugins: {
       legend: { display: false },
       tooltip: { enabled: false },
@@ -117,10 +162,8 @@ const WeekForecast = ({ periods }) => {
         textStrokeWidth: 3,
         clamp: true,
         font: { weight: '800', size: 18 },
-
         formatter: (_, context) =>
           `${realInches[context.dataIndex].toFixed(2)}"`,
-
         anchor: 'center',
         align: 'center',
         textAlign: 'center',
@@ -154,7 +197,7 @@ const WeekForecast = ({ periods }) => {
         type="bar"
         data={data}
         options={options}
-        plugins={[ChartDataLabels]}
+        plugins={[ChartDataLabels, todayUnderlinePlugin]}
       />
     </Box>
   )
