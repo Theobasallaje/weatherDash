@@ -213,6 +213,18 @@ const WeekForecast = ({ periods }) => {
     },
   }
 
+  const legendColors = [
+    '#fde680',
+    '#b4d282',
+    '#a5e491',
+    '#96e6cd',
+    '#94c6ff',
+    '#9692ff',
+    '#8376fc',
+    '#6e53e3',
+    '#3f2fd0',
+  ]
+
   return (
     <Box sx={{ width: '100%' }}>
       {/* CHART */}
@@ -225,7 +237,7 @@ const WeekForecast = ({ periods }) => {
         />
       </Box>
 
-      {/* LEGEND (EVENLY SEGMENTED COLORS) */}
+      {/* LEGEND (EQUAL SEGMENTS, NO COLOR BIAS) */}
       <Box
         sx={{
           mt: 2,
@@ -235,7 +247,6 @@ const WeekForecast = ({ periods }) => {
           display: 'flex',
           flexDirection: 'column',
           gap: 0.75,
-          alignItems: 'flex-start',
         }}
       >
         <Box
@@ -244,31 +255,20 @@ const WeekForecast = ({ periods }) => {
             width: '100%',
             borderRadius: '999px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-
-            background: `
-              linear-gradient(to right,
-                #fde680 0%,
-                #fde680 10%,
-                #b4d282 10%,
-                #b4d282 20%,
-                #a5e491 20%,
-                #a5e491 30%,
-                #96e6cd 30%,
-                #96e6cd 40%,
-                #94c6ff 40%,
-                #94c6ff 50%,
-                #9692ff 50%,
-                #9692ff 60%,
-                #8376fc 60%,
-                #8376fc 70%,
-                #6e53e3 70%,
-                #6e53e3 80%,
-                #3f2fd0 80%,
-                #3f2fd0 100%
-              )
-            `,
+            display: 'flex',
+            overflow: 'hidden',
           }}
-        />
+        >
+          {legendColors.map((color, i) => (
+            <Box
+              key={i}
+              sx={{
+                flex: 1, // 👈 ensures PERFECT equal width
+                backgroundColor: color,
+              }}
+            />
+          ))}
+        </Box>
 
         <Box
           sx={{
@@ -277,7 +277,7 @@ const WeekForecast = ({ periods }) => {
             fontSize: '14px',
             fontWeight: 500,
             fontFamily: 'inherit',
-            marginTop: '6px',
+            mt: '6px',
           }}
         >
           Increasing likelihood →
