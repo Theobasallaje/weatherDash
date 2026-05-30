@@ -3,7 +3,7 @@ import 'chart.js/auto'
 
 import { Chart } from 'react-chartjs-2'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
-import { useMemo } from 'react'
+import { useRef } from 'react'
 
 const WeekForecast = ({ periods }) => {
   if (!periods || periods.length === 0) return null
@@ -13,23 +13,49 @@ const WeekForecast = ({ periods }) => {
   periods.forEach((p) => {
     try {
       const d = new Date(p.startTime)
-      const key = d.toISOString().slice(0, 10)
+
+      // Use LOCAL date instead of UTC date
+      const key = [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+      ].join('-')
 
       const chance = Number(p.precipitationChance || 0)
       const inches = Number(p.rainInches || 0)
 
       if (!byDate[key]) {
-        byDate[key] = { label: key, chance, inches }
+        byDate[key] = {
+          label: key,
+          chance,
+          inches,
+        }
       } else {
-        byDate[key].chance = Math.max(byDate[key].chance, chance)
+        byDate[key].chance = Math.max(
+          byDate[key].chance,
+          chance
+        )
+
         byDate[key].inches = Number(
-          (Number(byDate[key].inches) + inches).toFixed(2)
+          (
+            Number(byDate[key].inches) + inches
+          ).toFixed(2)
         )
       }
     } catch (e) {}
   })
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
   const entries = Object.values(byDate)
+    .filter((entry) => {
+      const entryDate = new Date(entry.label)
+      return entryDate >= yesterday
+    })
     .sort((a, b) => (a.label > b.label ? 1 : -1))
     .slice(0, 5)
 
@@ -37,25 +63,45 @@ const WeekForecast = ({ periods }) => {
     const d = new Date(dateStr)
 
     const today = new Date()
-    const yesterday = new Date()
-    yesterday.setDate(today.getDate() - 1)
+    today.setHours(0, 0, 0, 0)
+
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
 
     const tomorrow = new Date(today)
-    tomorrow.setDate(today.getDate() + 1)
+    tomorrow.setDate(tomorrow.getDate() + 1)
 
-    if (d.toDateString() === today.toDateString()) return 'Today'
-    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
-    if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
+    d.setHours(0, 0, 0, 0)
 
-    return d.toLocaleDateString('en-US', { weekday: 'long' })
+    if (d.getTime() === today.getTime()) return 'Today'
+    if (d.getTime() === yesterday.getTime()) return 'Yesterday'
+    if (d.getTime() === tomorrow.getTime()) return 'Tomorrow'
+
+    return d.toLocaleDateString('en-US', {
+      weekday: 'long',
+    })
   }
 
-  const labels = entries.map((e) => getRelativeLabel(e.label))
-  const todayIndex = labels.findIndex((l) => l === 'Today')
+  const labels = entries.map((e) =>
+    getRelativeLabel(e.label)
+  )
 
-  const realInches = entries.map((e) => Number(e.inches))
-  const inchesData = realInches.map((v) => Math.sqrt(v))
-  const chanceData = entries.map((e) => Number(e.chance))
+  const todayIndex = labels.findIndex(
+    (label) => label === 'Today'
+  )
+
+  const realInches = entries.map((e) =>
+    Number(e.inches)
+  )
+
+  // sqrt scaling makes tiny rainfall visible
+  const inchesData = realInches.map((v) =>
+    Math.sqrt(v)
+  )
+
+  const chanceData = entries.map((e) =>
+    Number(e.chance)
+  )
 
   const getChanceColor = (value) => {
     if (value >= 90) return '#3f2fd0'
@@ -67,15 +113,16 @@ const WeekForecast = ({ periods }) => {
     if (value >= 30) return '#a5e491'
     if (value >= 20) return '#b4d282'
     if (value >= 0) return '#fde680'
+
     return '#f8fafc'
   }
 
   const maxRain = Math.max(...inchesData, 1)
 
-  // -------- ANIMATED UNDERLINE STATE --------
-  const underlineState = useMemo(() => {
-    return { progress: 0 }
-  }, [])
+  // Persist animation state between renders
+  const underlineState = useRef({
+    progress: 0,
+  })
 
   const todayUnderlinePlugin = {
     id: 'todayUnderline',
@@ -92,26 +139,38 @@ const WeekForecast = ({ periods }) => {
       const xPos = x.getPixelForTick(todayIndex)
       const yPos = chartArea.bottom + 48
 
-      const todayColor = getChanceColor(chanceData[todayIndex])
+      const start = xPos - 32
+      const end = xPos + 32
 
-      const start = xPos - 55
-      const end = xPos + 55
+      // Animate underline once
+      if (underlineState.current.progress < 1) {
+        underlineState.current.progress += 0.06
 
-      // animate progress once
-      if (underlineState.progress < 1) {
-        underlineState.progress += 0.06
-        underlineState.progress = Math.min(underlineState.progress, 1)
+        underlineState.current.progress = Math.min(
+          underlineState.current.progress,
+          1
+        )
 
-        requestAnimationFrame(() => chart.draw())
+        requestAnimationFrame(() =>
+          chart.draw()
+        )
       }
 
-      const currentEnd = start + (end - start) * underlineState.progress
+      const currentEnd =
+        start +
+        (end - start) *
+          underlineState.current.progress
 
       ctx.save()
 
-      ctx.strokeStyle = `${todayColor}cc`
-      ctx.lineWidth = 6
+      // Light gray underline with subtle shadow
+      ctx.strokeStyle = '#dcdcdc'
+      ctx.lineWidth = 3
       ctx.lineCap = 'round'
+
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.15)'
+      ctx.shadowBlur = 12
+      ctx.shadowOffsetY = 2
 
       ctx.beginPath()
       ctx.moveTo(start, yPos)
@@ -124,18 +183,27 @@ const WeekForecast = ({ periods }) => {
 
   const data = {
     labels,
+
     datasets: [
       {
         label: 'Rainfall',
+
         data: inchesData,
 
-        backgroundColor: chanceData.map(getChanceColor),
+        backgroundColor:
+          chanceData.map(getChanceColor),
 
-        borderColor: 'rgba(255,255,255,0.5)',
+        borderColor:
+          'rgba(255,255,255,0.5)',
+
         borderWidth: 1.5,
+
         borderRadius: 14,
+
         borderSkipped: false,
+
         categoryPercentage: 0.72,
+
         barPercentage: 0.9,
       },
     ],
@@ -143,7 +211,9 @@ const WeekForecast = ({ periods }) => {
 
   const options = {
     responsive: true,
+
     maintainAspectRatio: false,
+
     events: [],
 
     layout: {
@@ -153,19 +223,38 @@ const WeekForecast = ({ periods }) => {
     },
 
     plugins: {
-      legend: { display: false },
-      tooltip: { enabled: false },
+      legend: {
+        display: false,
+      },
+
+      tooltip: {
+        enabled: false,
+      },
 
       datalabels: {
         color: '#111827',
-        textStrokeColor: 'rgba(255,255,255,0.7)',
+
+        textStrokeColor:
+          'rgba(255,255,255,0.7)',
+
         textStrokeWidth: 3,
+
         clamp: true,
-        font: { weight: '800', size: 18 },
+
+        font: {
+          weight: '800',
+          size: 18,
+        },
+
         formatter: (_, context) =>
-          `${realInches[context.dataIndex].toFixed(2)}"`,
+          `${realInches[
+            context.dataIndex
+          ].toFixed(2)}"`,
+
         anchor: 'center',
+
         align: 'center',
+
         textAlign: 'center',
       },
     },
@@ -174,30 +263,60 @@ const WeekForecast = ({ periods }) => {
       x: {
         ticks: {
           color: '#374151',
+
           padding: 10,
-          font: { size: 16, weight: '500' },
+
+          font: {
+            size: 16,
+            weight: '500',
+          },
         },
-        grid: { display: false },
-        border: { display: false },
+
+        grid: {
+          display: false,
+        },
+
+        border: {
+          display: false,
+        },
       },
 
       y: {
         display: false,
+
         beginAtZero: true,
-        suggestedMax: Math.max(maxRain * 1.2, 0.5),
-        grid: { display: false },
-        border: { display: false },
+
+        suggestedMax: Math.max(
+          maxRain * 1.2,
+          0.5
+        ),
+
+        grid: {
+          display: false,
+        },
+
+        border: {
+          display: false,
+        },
       },
     },
   }
 
   return (
-    <Box sx={{ height: 320, width: '100%' }}>
+    <Box
+      sx={{
+        height: 320,
+        width: '100%',
+      }}
+    >
       <Chart
         type="bar"
         data={data}
         options={options}
-        plugins={[ChartDataLabels, todayUnderlinePlugin]}
+        plugins={[
+          ChartDataLabels,
+          todayUnderlinePlugin,
+        ]}
       />
     </Box>
   )
