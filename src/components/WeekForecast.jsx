@@ -240,7 +240,7 @@ const WeekForecast = ({ periods }) => {
       >
         <Box
           sx={{
-            height: 6,
+            height: 8,
             width: '100%',
             borderRadius: '999px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
