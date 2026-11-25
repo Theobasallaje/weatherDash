@@ -23,6 +23,7 @@ const WeatherDashboard = () => {
   const [weatherData, setWeatherData] = useState(null)
   const [hourlyData, setHourlyData] = useState(null)
   const [nextRainyDay, setNextRainyDay] = useState(null)
+  const [freezeDays, setFreezeDays] = useState({})
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -88,6 +89,139 @@ const WeatherDashboard = () => {
     }
 
     return 0
+  }
+
+  // Parses a grid validTime like "2026-11-25T05:00:00+00:00/PT10H"
+  // into { start, end } epoch milliseconds.
+  const parseValidTimeRange = (validTime) => {
+    try {
+      const [start, dur] = String(validTime).split('/')
+
+      const startDate = new Date(start)
+
+      if (isNaN(startDate.getTime())) {
+        return null
+      }
+
+      let durationMs = 0
+
+      if (dur) {
+        const days = dur.match(/P(\d+)D/)
+        const hours = dur.match(/T(\d+)H/)
+
+        if (days) durationMs += Number(days[1]) * 86400000
+        if (hours) durationMs += Number(hours[1]) * 3600000
+      }
+
+      return {
+        start: startDate.getTime(),
+        end: startDate.getTime() + durationMs,
+      }
+    } catch {
+      return null
+    }
+  }
+
+  // Builds a map of local day key (YYYY-MM-DD) -> { level }
+  // from the NWS grid hazards + min temperature data.
+  //
+  //   Freezing level codes:
+  //     FZ  = Freeze
+  //     FR  = Frost
+  //     FZC = Hard freeze
+  //
+  //   Severity mapping (used for the snowflake color):
+  //     warning  -> any FZ/FZC with significance "W"
+  //     advisory -> FZ/FZC with significance "A"
+  //     frost    -> FR only, or min temperature <= 0°C
+  const buildFreezeDays = (hazardsData, minTempData) => {
+    const freezeDays = {}
+
+    const severityRank = { warning: 3, advisory: 2, frost: 1 }
+
+    const bumpSeverity = (dayKey, level) => {
+      const existing = freezeDays[dayKey]
+      if (
+        !existing ||
+        severityRank[level] > severityRank[existing.level]
+      ) {
+        freezeDays[dayKey] = { level }
+      }
+    }
+
+    const dayKeyFrom = (ts) => {
+      const d = new Date(ts)
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+      ].join('-')
+    }
+
+    const markDayRange = (validTime, level) => {
+      const range = parseValidTimeRange(validTime)
+      if (!range) return
+
+      for (
+        let t = range.start;
+        t <= Math.min(range.end, range.start + 7 * 86400000);
+        t += 86400000
+      ) {
+        bumpSeverity(dayKeyFrom(t), level)
+      }
+    }
+
+    // Check hazards array for FZ (freeze) / FR (frost) events
+    ;(hazardsData || []).forEach((hazard) => {
+      const value = hazard.value
+      if (!Array.isArray(value)) return
+
+      value.forEach((event) => {
+        const phenomenon = event.phenomenon
+        const significance = (event.significance || '').toUpperCase()
+
+        if (
+          phenomenon === 'FZ' ||
+          phenomenon === 'FZC' ||
+          phenomenon === 'FR'
+        ) {
+          const level =
+            significance === 'W'
+              ? 'warning'
+              : phenomenon === 'FR'
+                ? 'frost'
+                : 'advisory'
+
+          markDayRange(hazard.validTime, level)
+        }
+      })
+    })
+
+    // Also check min temperature: if any min temp is <= 0°C (32°F), mark freeze
+    const minTemps =
+      minTempData && Array.isArray(minTempData.values)
+        ? minTempData.values
+        : minTempData || []
+
+    ;(minTemps).forEach((v) => {
+      if (v && v.value !== null && v.value <= 0) {
+        // mark all days in this range as at least "frost"
+        const range = parseValidTimeRange(v.validTime)
+        if (!range) return
+        for (
+          let t = range.start;
+          t <= Math.min(
+            range.end,
+            range.start + 7 * 86400000
+          );
+          t += 86400000
+        ) {
+          bumpSeverity(dayKeyFrom(t), 'frost')
+        }
+      }
+    })
+
+    return freezeDays
   }
 
   const fetchWeatherData = async (coords) => {
@@ -165,6 +299,13 @@ const WeatherDashboard = () => {
         gridForecast.properties
           .quantitativePrecipitation?.values || []
 
+      // Freeze data from the same grid point:
+      // explicit FZ/FR/FZC hazards plus min temperature.
+      const hazardsData =
+        gridForecast.properties.hazards?.values || []
+      const minTemperatureData =
+        gridForecast.properties.minTemperature || []
+
       const enrichedPeriods = periods.map(
         (period, index) => ({
           ...period,
@@ -201,6 +342,12 @@ const WeatherDashboard = () => {
 
       setWeatherData(enrichedPeriods)
       setHourlyData(enrichedHourlyPeriods)
+      setFreezeDays(
+        buildFreezeDays(
+          hazardsData,
+          minTemperatureData
+        )
+      )
 
       const rainyPeriods = enrichedPeriods.filter(
         (period) => period.precipitationChance > 20
@@ -341,6 +488,7 @@ const WeatherDashboard = () => {
         <Box>
           <WeekForecast
             periods={filteredWeatherData}
+            freezeDays={freezeDays}
           />
         </Box>
       )}

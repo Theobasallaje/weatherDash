@@ -5,7 +5,15 @@ import { Chart } from 'react-chartjs-2'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { useRef } from 'react'
 
-const WeekForecast = ({ periods }) => {
+// Freeze severity -> rain-scale percentage, reusing the
+// same percentage -> color association as rain.
+const FREEZE_LEVEL_PCT = {
+  warning: 95,
+  advisory: 75,
+  frost: 45,
+}
+
+const WeekForecast = ({ periods, freezeDays }) => {
   if (!periods || periods.length === 0) return null
 
   const byDate = {}
@@ -28,6 +36,12 @@ const WeekForecast = ({ periods }) => {
           label: key,
           chance,
           inches,
+          freeze: freezeDays && freezeDays[key]
+            ? {
+                ...freezeDays[key],
+                pct: FREEZE_LEVEL_PCT[freezeDays[key].level] || 45,
+              }
+            : null,
         }
       } else {
         byDate[key].chance = Math.max(byDate[key].chance, chance)
@@ -98,6 +112,49 @@ const WeekForecast = ({ periods }) => {
 
   const underlineState = useRef({ progress: 0 })
 
+  // Snowflake icon under each day that has a chance
+  // of freezing. Color uses the same rain scale.
+  const freezeIconsPlugin = {
+    id: 'freezeIcons',
+
+    afterDraw(chart) {
+      const {
+        ctx,
+        scales: { x },
+        chartArea,
+      } = chart
+
+      if (!entries.some((e) => e.freeze)) return
+
+      ctx.save()
+
+      ctx.font =
+        '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+
+      entries.forEach((entry, i) => {
+        if (!entry.freeze) return
+
+        const xPos = x.getPixelForTick(i)
+
+        // beneath label, with padding above
+        const yPos = chartArea.bottom + 50
+
+        ctx.fillStyle = getChanceColor(entry.freeze.pct)
+
+        // subtle white outline like the datalabels
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'
+        ctx.lineWidth = 3
+
+        ctx.strokeText('\u2744\uFE0E', xPos, yPos)
+        ctx.fillText('\u2744\uFE0E', xPos, yPos)
+      })
+
+      ctx.restore()
+    },
+  }
+
   const todayUnderlinePlugin = {
     id: 'todayUnderline',
 
@@ -111,7 +168,9 @@ const WeekForecast = ({ periods }) => {
       } = chart
 
       const xPos = x.getPixelForTick(todayIndex)
-      const yPos = chartArea.bottom + 48
+
+      // below labels + snowflake row
+      const yPos = chartArea.bottom + 68
 
       const start = xPos - 32
       const end = xPos + 32
@@ -172,7 +231,7 @@ const WeekForecast = ({ periods }) => {
     events: [],
 
     layout: {
-      padding: { bottom: 20 },
+      padding: { bottom: 78 },
     },
 
     plugins: {
@@ -228,12 +287,12 @@ const WeekForecast = ({ periods }) => {
   return (
     <Box sx={{ width: '100%' }}>
       {/* CHART */}
-      <Box sx={{ height: 320, width: '100%' }}>
+      <Box sx={{ height: 360, width: '100%' }}>
         <Chart
           type="bar"
           data={data}
           options={options}
-          plugins={[ChartDataLabels, todayUnderlinePlugin]}
+          plugins={[ChartDataLabels, freezeIconsPlugin, todayUnderlinePlugin]}
         />
       </Box>
 
