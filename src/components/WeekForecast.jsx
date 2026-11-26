@@ -134,10 +134,6 @@ const WeekForecast = ({ periods, freezeDays }) => {
       // measure the day label width using the tick settings (16px / 500)
       ctx.font = `500 16px ${TICK_FONT}`
 
-      // vertically centered on the 16px label text
-      // (tick padding 10 + half a 16px line)
-      const yPos = chartArea.bottom + 18
-
       entries.forEach((entry, i) => {
         if (!entry.freeze) return
 
@@ -145,6 +141,13 @@ const WeekForecast = ({ periods, freezeDays }) => {
 
         // icon starts just right of the day text
         const iconX = xPos + ctx.measureText(labels[i]).width / 2 + 8
+
+        // perfectly vertically centered on that label's drawn text:
+        // use the tick's measured text box when available
+        const tickBox = x._labelSizes && x._labelSizes[i]
+        const yPos = tickBox
+          ? (tickBox.top + tickBox.bottom) / 2
+          : chartArea.bottom + 18
 
         ctx.font =
           '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
