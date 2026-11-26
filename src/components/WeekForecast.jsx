@@ -112,8 +112,8 @@ const WeekForecast = ({ periods, freezeDays }) => {
 
   const underlineState = useRef({ progress: 0 })
 
-  // Snowflake icon under each day that has a chance
-  // of freezing. Color uses the same rain scale.
+  // Snowflake icon to the right of each day label that
+  // has a chance of freezing. Color uses the same rain scale.
   const freezeIconsPlugin = {
     id: 'freezeIcons',
 
@@ -128,18 +128,28 @@ const WeekForecast = ({ periods, freezeDays }) => {
 
       ctx.save()
 
-      ctx.font =
-        '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
+      const TICK_FONT =
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+
+      // measure the day label width using the tick settings (16px / 500)
+      ctx.font = `500 16px ${TICK_FONT}`
+
+      // vertically centered on the 16px label text
+      // (tick padding 10 + half a 16px line)
+      const yPos = chartArea.bottom + 18
 
       entries.forEach((entry, i) => {
         if (!entry.freeze) return
 
         const xPos = x.getPixelForTick(i)
 
-        // beneath label, with padding above
-        const yPos = chartArea.bottom + 50
+        // icon starts just right of the day text
+        const iconX = xPos + ctx.measureText(labels[i]).width / 2 + 8
+
+        ctx.font =
+          '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'middle'
 
         ctx.fillStyle = getChanceColor(entry.freeze.pct)
 
@@ -147,8 +157,8 @@ const WeekForecast = ({ periods, freezeDays }) => {
         ctx.strokeStyle = 'rgba(255,255,255,0.7)'
         ctx.lineWidth = 3
 
-        ctx.strokeText('\u2744\uFE0E', xPos, yPos)
-        ctx.fillText('\u2744\uFE0E', xPos, yPos)
+        ctx.strokeText('\u2744\uFE0E', iconX, yPos)
+        ctx.fillText('\u2744\uFE0E', iconX, yPos)
       })
 
       ctx.restore()
@@ -169,8 +179,8 @@ const WeekForecast = ({ periods, freezeDays }) => {
 
       const xPos = x.getPixelForTick(todayIndex)
 
-      // below labels + snowflake row
-      const yPos = chartArea.bottom + 68
+      // directly beneath the day label
+      const yPos = chartArea.bottom + 44
 
       const start = xPos - 32
       const end = xPos + 32
@@ -231,7 +241,7 @@ const WeekForecast = ({ periods, freezeDays }) => {
     events: [],
 
     layout: {
-      padding: { bottom: 78 },
+      padding: { bottom: 56 },
     },
 
     plugins: {
