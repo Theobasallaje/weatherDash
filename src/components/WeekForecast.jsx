@@ -142,12 +142,12 @@ const WeekForecast = ({ periods, freezeDays }) => {
         // icon starts just right of the day text
         const iconX = xPos + ctx.measureText(labels[i]).width / 2 + 8
 
-        // perfectly vertically centered on that label's drawn text:
-        // use the tick's measured text box when available
-        const tickBox = x._labelSizes && x._labelSizes[i]
-        const yPos = tickBox
-          ? (tickBox.top + tickBox.bottom) / 2
-          : chartArea.bottom + 18
+        // perfectly vertically centered on the drawn label text:
+        // Chart.js draws bottom-axis tick labels with textBaseline
+        // 'middle' at chartArea.bottom + ticks.padding + lineHeight/2
+        const lineHeight = 16 * 1.2
+        const yPos =
+          x.top + x.options.ticks.padding + lineHeight / 2
 
         ctx.font =
           '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
