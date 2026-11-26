@@ -112,8 +112,60 @@ const WeekForecast = ({ periods, freezeDays }) => {
 
   const underlineState = useRef({ progress: 0 })
 
+  const TICK_FONT =
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+  const TICK_SIZE = 16
+  const TICK_LINE_HEIGHT = TICK_SIZE * 1.2
+
+  // The exact vertical center of the row of day labels:
+  // Chart.js draws bottom-axis tick labels with textBaseline
+  // 'middle' at chartArea.bottom + ticks.padding + lineHeight/2
+  const labelCenterY = (x) =>
+    x.top +
+    x.options.ticks.padding +
+    TICK_LINE_HEIGHT / 2
+
+  // One continuous red line through the vertical center of
+  // every day label — and every snowflake sits on it.
+  const dayTextLinePlugin = {
+    id: 'dayTextLine',
+
+    afterDraw(chart) {
+      const {
+        ctx,
+        scales: { x },
+      } = chart
+
+      ctx.save()
+      ctx.font = `500 ${TICK_SIZE}px ${TICK_FONT}`
+
+      const first = x.getPixelForTick(0)
+      const last = x.getPixelForTick(entries.length - 1)
+
+      const halfFirst =
+        ctx.measureText(labels[0]).width / 2
+      const halfLast =
+        ctx.measureText(
+          labels[entries.length - 1]
+        ).width / 2
+
+      const y = labelCenterY(x)
+
+      ctx.strokeStyle = '#ff0000'
+      ctx.lineWidth = 2
+
+      ctx.beginPath()
+      ctx.moveTo(first - halfFirst - 4, y)
+      ctx.lineTo(last + halfLast + 4, y)
+      ctx.stroke()
+
+      ctx.restore()
+    },
+  }
+
   // Snowflake icon to the right of each day label that
-  // has a chance of freezing. Color uses the same rain scale.
+  // has a chance of freezing, centered on the red line.
+  // Color uses the same rain scale.
   const freezeIconsPlugin = {
     id: 'freezeIcons',
 
@@ -121,18 +173,15 @@ const WeekForecast = ({ periods, freezeDays }) => {
       const {
         ctx,
         scales: { x },
-        chartArea,
       } = chart
 
       if (!entries.some((e) => e.freeze)) return
 
       ctx.save()
 
-      const TICK_FONT =
-        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+      ctx.font = `500 ${TICK_SIZE}px ${TICK_FONT}`
 
-      // measure the day label width using the tick settings (16px / 500)
-      ctx.font = `500 16px ${TICK_FONT}`
+      const y = labelCenterY(x)
 
       entries.forEach((entry, i) => {
         if (!entry.freeze) return
@@ -140,14 +189,8 @@ const WeekForecast = ({ periods, freezeDays }) => {
         const xPos = x.getPixelForTick(i)
 
         // icon starts just right of the day text
-        const iconX = xPos + ctx.measureText(labels[i]).width / 2 + 8
-
-        // perfectly vertically centered on the drawn label text:
-        // Chart.js draws bottom-axis tick labels with textBaseline
-        // 'middle' at chartArea.bottom + ticks.padding + lineHeight/2
-        const lineHeight = 16 * 1.2
-        const yPos =
-          x.top + x.options.ticks.padding + lineHeight / 2
+        const iconX =
+          xPos + ctx.measureText(labels[i]).width / 2 + 8
 
         ctx.font =
           '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
@@ -160,8 +203,8 @@ const WeekForecast = ({ periods, freezeDays }) => {
         ctx.strokeStyle = 'rgba(255,255,255,0.7)'
         ctx.lineWidth = 3
 
-        ctx.strokeText('\u2744\uFE0E', iconX, yPos)
-        ctx.fillText('\u2744\uFE0E', iconX, yPos)
+        ctx.strokeText('\u2744\uFE0E', iconX, y)
+        ctx.fillText('\u2744\uFE0E', iconX, y)
       })
 
       ctx.restore()
@@ -305,7 +348,12 @@ const WeekForecast = ({ periods, freezeDays }) => {
           type="bar"
           data={data}
           options={options}
-          plugins={[ChartDataLabels, freezeIconsPlugin, todayUnderlinePlugin]}
+          plugins={[
+            ChartDataLabels,
+            dayTextLinePlugin,
+            freezeIconsPlugin,
+            todayUnderlinePlugin,
+          ]}
         />
       </Box>
 
