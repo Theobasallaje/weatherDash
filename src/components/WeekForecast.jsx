@@ -13,6 +13,102 @@ const FREEZE_LEVEL_PCT = {
   frost: 45,
 }
 
+const DAY_TICK_FONT =
+  "500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+const SNOW_FONT =
+  '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
+
+// Vertical center (CSS px) of the *actual drawn* day-label text.
+// Chart.js gives no API for the exact anchor it used, so once the
+// chart has drawn its tick labels we measure the real ink rows
+// straight off the canvas and center on that. Computed once per
+// canvas size and cached on the chart instance.
+const measureLabelCenterY = (chart) => {
+  const {
+    canvas,
+    chartArea,
+    scales: { x },
+  } = chart
+
+  const key = canvas.width + 'x' + canvas.height
+
+  if (chart._labelCenterKey === key && chart._labelCenterY) {
+    return chart._labelCenterY
+  }
+
+  const ratio =
+    canvas.clientWidth > 0
+      ? canvas.width / canvas.clientWidth
+      : 1
+
+  const ctx = canvas.getContext('2d')
+
+  const left = Math.max(0, Math.floor(chartArea.left * ratio))
+  const right = Math.min(
+    canvas.width,
+    Math.ceil(chartArea.right * ratio)
+  )
+  // window for the tick-label text only: below the chart area
+  // (datalabels always clamp above it) but above the underline
+  const top = Math.max(
+    0,
+    Math.ceil((chartArea.bottom + 12) * ratio)
+  )
+  const bottom = Math.min(
+    canvas.height,
+    Math.ceil((chartArea.bottom + 42) * ratio)
+  )
+
+  let minY = Infinity
+  let maxY = -Infinity
+
+  if (right > left && bottom > top) {
+    const data = ctx.getImageData(
+      left,
+      top,
+      right - left,
+      bottom - top
+    ).data
+
+    const sw = right - left
+    const sh = bottom - top
+
+    for (let y = 0; y < sh; y++) {
+      let count = 0
+      let i = y * sw * 4
+
+      for (let px = 0; px < sw; px++, i += 4) {
+        const r = data[i]
+        const gg = data[i + 1]
+        const b = data[i + 2]
+        const a = data[i + 3]
+
+        // dark tick label pixels (excludes bars, datalabels,
+        // snowflake colors and the gray underline)
+        if (a > 60 && r < 150 && gg < 150 && b < 160) {
+          count++
+        }
+      }
+
+      if (count > Math.max(2, Math.ceil(ratio))) {
+        const row = top + y
+
+        if (row < minY) minY = row
+        if (row > maxY) maxY = row
+      }
+    }
+  }
+
+  const y = isFinite(minY)
+    ? (minY + maxY) / 2 / ratio
+    : x.top + x.options.ticks.padding + (16 * 1.2) / 2
+
+  chart._labelCenterKey = key
+  chart._labelCenterY = y
+
+  return y
+}
+
 const WeekForecast = ({ periods, freezeDays }) => {
   if (!periods || periods.length === 0) return null
 
@@ -112,19 +208,6 @@ const WeekForecast = ({ periods, freezeDays }) => {
 
   const underlineState = useRef({ progress: 0 })
 
-  const TICK_FONT =
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-  const TICK_SIZE = 16
-  const TICK_LINE_HEIGHT = TICK_SIZE * 1.2
-
-  // The exact vertical center of the row of day labels:
-  // Chart.js draws bottom-axis tick labels with textBaseline
-  // 'middle' at chartArea.bottom + ticks.padding + lineHeight/2
-  const labelCenterY = (x) =>
-    x.top +
-    x.options.ticks.padding +
-    TICK_LINE_HEIGHT / 2
-
   // One continuous red line through the vertical center of
   // every day label — and every snowflake sits on it.
   const dayTextLinePlugin = {
@@ -137,7 +220,7 @@ const WeekForecast = ({ periods, freezeDays }) => {
       } = chart
 
       ctx.save()
-      ctx.font = `500 ${TICK_SIZE}px ${TICK_FONT}`
+      ctx.font = DAY_TICK_FONT
 
       const first = x.getPixelForTick(0)
       const last = x.getPixelForTick(entries.length - 1)
@@ -149,7 +232,8 @@ const WeekForecast = ({ periods, freezeDays }) => {
           labels[entries.length - 1]
         ).width / 2
 
-      const y = labelCenterY(x)
+      // center of the actually-rendered label text
+      const y = measureLabelCenterY(chart)
 
       ctx.strokeStyle = '#ff0000'
       ctx.lineWidth = 2
@@ -179,9 +263,12 @@ const WeekForecast = ({ periods, freezeDays }) => {
 
       ctx.save()
 
-      ctx.font = `500 ${TICK_SIZE}px ${TICK_FONT}`
+      ctx.font = DAY_TICK_FONT
 
-      const y = labelCenterY(x)
+      // same position as the red line; a symmetric glyph is
+      // centered by its 'middle' anchor, so sitting on the
+      // line means centered on the line
+      const iconY = measureLabelCenterY(chart)
 
       entries.forEach((entry, i) => {
         if (!entry.freeze) return
@@ -192,8 +279,7 @@ const WeekForecast = ({ periods, freezeDays }) => {
         const iconX =
           xPos + ctx.measureText(labels[i]).width / 2 + 8
 
-        ctx.font =
-          '22px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif'
+        ctx.font = SNOW_FONT
         ctx.textAlign = 'left'
         ctx.textBaseline = 'middle'
 
@@ -203,8 +289,8 @@ const WeekForecast = ({ periods, freezeDays }) => {
         ctx.strokeStyle = 'rgba(255,255,255,0.7)'
         ctx.lineWidth = 3
 
-        ctx.strokeText('\u2744\uFE0E', iconX, y)
-        ctx.fillText('\u2744\uFE0E', iconX, y)
+        ctx.strokeText('\u2744\uFE0E', iconX, iconY)
+        ctx.fillText('\u2744\uFE0E', iconX, iconY)
       })
 
       ctx.restore()
